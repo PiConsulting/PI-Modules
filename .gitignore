@@ -1,0 +1,76 @@
+# Directorios de trabajo: providers y modulos descargados
+**/.terraform/*
+.terraform/
+
+# State. Nunca debe entrar en el repositorio
+# (endpoints, IDs, y en otros modulos tambien secretos)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform planes guardados 
+*.tfplan
+tfplan
+plan.out
+*.tfplan.tf.json
+
+# Overrides locals: por diseño no se versionan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Configuracion local de terraform
+.terraformrc
+terraform.rc
+
+# Lock de providers
+# 
+# En un repositorio de MODULOS se ignora: un modulo declara rangos de version,
+# no fija una version concreta; tambien hacerlo aca afecta a la hora de versionar los consumidores
+#
+# En un repositorio "live" ocurre lo contrario: el lock si se comitea
+.terraform.lock.hcl
+
+# Variables. En el repositorio central no deberia haber ninguna fuera de examples/,
+# y los de examples/ son datos de prueba sin secretos
+*.tfvars
+*.tfvars.json
+!examples/**/*.tfvars
+!**/examples/**/*.tfvars
+
+# Herramientas
+
+crash.log
+crash.*.log
+.infracost/
+infracost.json
+checkov_report*
+results_*.xml
+.tflint.d/
+
+
+# Credenciales - defensa en profundidad.
+# No debería existir ninguno de estos, pero el coste de la línea es cero.
+
+*.ppk
+*.p12
+.env
+.env.*
+credentials
+aws_credentials
+ 
+
+# Entorno local
+
+ 
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
+ 
+# Artefactos de tooling local
+.claude/

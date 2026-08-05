@@ -3,7 +3,6 @@
 Repositorio centralizado de módulos Terraform para AWS. Módulos genéricos, versionados por
 tag Git y consumidos por los repositorios live de cada cliente.
 
-📄 **[Propuesta técnica y comercial completa →](docs/00-vision-plataforma.md)**
 
 ---
 
@@ -15,7 +14,7 @@ los reescriben.
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/consultora/tf-modules-pi.git//modules/networking/vpc?ref=networking/vpc/v1.0.0"
+  source = "git::https://github.com/benjamin-cloud-pi/PI-Modules.git//modules/vpc?ref=vpc/v1.0.0"
   # ...
 }
 ```
@@ -24,7 +23,7 @@ module "vpc" {
 
 | Módulo | Estado | Qué resuelve |
 |---|---|---|
-| [`networking/vpc`](modules/networking/vpc/) | 🟢 **v1.0.0** | Red base multi-AZ de tres capas, NAT configurable, endpoints y flow logs |
+| [`vpc`](modules/vpc/) | 🟢 **v1.0.0** | Red base multi-AZ de tres capas, NAT configurable, endpoints y flow logs |
 | `security/security-groups` | ⚪ siguiente | Reglas entre capas sin exposición accidental |
 | `security/iam-role` | ⚪ planificado | Roles de menor privilegio con confianza acotada |
 | `security/kms` | ⚪ planificado | Claves gestionadas con rotación y políticas |
@@ -54,18 +53,7 @@ Estados: 🟢 estable · 🟡 en desarrollo · ⚪ planificado
 | D | Landing Zone multi-cuenta | organizations, scp, iam, kms, cloudtrail, guardduty, securityhub, budgets |
 | E | Plataforma de datos | s3, kms, iam, glue, athena |
 
-Detalle en [docs/00-vision-plataforma.md §2](docs/00-vision-plataforma.md).
 
-## Estructura del repositorio
-
-```
-├── docs/
-│   ├── 00-vision-plataforma.md      # Propuesta técnica y comercial
-│   └── modules/                     # Una spec de diseño por módulo
-├── modules/<dominio>/<nombre>/      # Los módulos
-├── patterns/                        # Composiciones = arquitecturas completas
-└── examples-live/                   # Plantilla de repo live por cliente
-```
 
 ## Reglas del repositorio
 
@@ -83,8 +71,8 @@ Detalle en [docs/00-vision-plataforma.md §2](docs/00-vision-plataforma.md).
 Tags por módulo: `<dominio>/<nombre>/vMAJOR.MINOR.PATCH`
 
 ```
-networking/vpc/v1.0.0
-security/kms/v1.0.0
+vpc/v1.0.0             # módulo con layout plano (sin dominio)
+security/kms/v1.0.0    # resto del catálogo, aún con prefijo de dominio
 ```
 
 Los tags de plataforma (`platform/v2026.07.0`) agrupan un conjunto compatible de módulos.
@@ -93,7 +81,7 @@ Los tags de plataforma (`platform/v2026.07.0`) agrupan un conjunto compatible de
 
 ```bash
 # Validación estática de un módulo
-cd modules/networking/vpc
+cd modules/vpc
 terraform fmt -check -recursive
 terraform init -backend=false && terraform validate
 terraform test
@@ -104,7 +92,4 @@ terraform init && terraform apply
 terraform destroy
 ```
 
-## Roadmap
 
-12 semanas hasta el primer cliente. Detalle en
-[docs/00-vision-plataforma.md §12.3](docs/00-vision-plataforma.md).

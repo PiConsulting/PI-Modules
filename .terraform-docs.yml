@@ -1,0 +1,42 @@
+# Uso local:
+#   terraform-docs -c .terraform-docs.yml modules/vpc
+#
+# En CI se ejecuta con --output-check: si alguien decide cambiar una variable y no
+# regenera el README, el pipeline falla. Es lo que impide que la documentación
+# se desincronice del código.
+
+formatter: markdown table
+
+output:
+  file: README.md
+  mode: inject
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+sections:
+  show:
+    - requirements
+    - providers
+    - resources
+    - inputs
+    - outputs
+
+sort:
+  enabled: true
+  by: required
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: true
+  html: true
+  indent: 2
+  lockfile: false
+  required: true
+  sensitive: true
+  type: true

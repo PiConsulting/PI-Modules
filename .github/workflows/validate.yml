@@ -1,0 +1,260 @@
+###############################################################################
+# Pipeline de validación del repositorio de módulos.
+#
+# Todos los controles ejecutados en este pipeline son de análisis estático
+# o validación (plan-only). No se realizan despliegues (terraform apply).
+#
+# Etapas:
+#   fmt       - Verifica el formato del código.
+#   discover  - Detecta los módulos disponibles y genera la matriz de ejecución.
+#   validate  - Ejecuta init, validate y terraform test sobre los módulos y sus ejemplos.
+#   tflint    - Analiza buenas prácticas y reglas específicas del proveedor AWS.
+#   docs      - Verifica que la documentación esté sincronizada con variables.tf.
+#   checkov   - Ejecuta controles de seguridad sobre la configuración HCL.
+###############################################################################
+
+name: validate
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: "1.9.8"
+  TFLINT_VERSION: "v0.53.0"
+  TFDOCS_VERSION: "v0.19.0"
+  TF_IN_AUTOMATION: "true"
+
+  # Credenciales simuladas.
+  # Ningún job realiza llamadas reales a AWS.
+  AWS_REGION: "us-east-1"
+  AWS_ACCESS_KEY_ID: "mock"
+  AWS_SECRET_ACCESS_KEY: "mock"
+
+jobs:
+  # Terraform Format
+
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive -diff
+
+  # Discover Modules
+  discover:
+    name: Discover Modules
+    runs-on: ubuntu-latest
+
+    outputs:
+      modules: ${{ steps.list.outputs.modules }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Discover modules/*
+        id: list
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          modules=$(
+            find modules \
+              -mindepth 1 \
+              -maxdepth 1 \
+              -type d \
+            | sort \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))'
+          )
+
+          echo "modules=$modules" >> "$GITHUB_OUTPUT"
+          echo "Detected modules: $modules"
+
+  # Validate Modules
+  validate:
+    name: validate · ${{ matrix.module }}
+
+    needs: discover
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.modules) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      # Module Validation
+      - name: Terraform Init & Validate
+        working-directory: ${{ matrix.module }}
+        run: |
+          terraform init \
+            -backend=false \
+            -input=false
+
+          terraform validate
+
+      # Examples Validation
+      - name: Validate Examples
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          found=0
+
+          for ex in "${{ matrix.module }}/examples/"*/; do
+            found=1
+
+            echo "::group::$ex"
+
+            terraform -chdir="$ex" init \
+              -backend=false \
+              -input=false
+
+            terraform -chdir="$ex" validate
+
+            echo "::endgroup::"
+          done
+
+          if [ "$found" -eq 0 ]; then
+            echo "::error::${{ matrix.module }} no tiene examples/. Todo módulo debe incluir minimal/ y complete/."
+            exit 1
+          fi
+
+      # Terraform Tests
+      - name: Terraform Test
+        working-directory: ${{ matrix.module }}
+        run: |
+          if [ -d tests ]; then
+            terraform test
+          else
+            echo "::error::${{ matrix.module }} no tiene tests/."
+            exit 1
+          fi
+
+  # TFLint
+  tflint:
+    name: tflint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: Initialize TFLint
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tflint --init
+
+      - name: Run TFLint
+        run: |
+          tflint \
+            --recursive \
+            --config="$(pwd)/.tflint.hcl" \
+            --format=compact
+
+  # Terraform Docs
+  docs:
+    name: terraform-docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install terraform-docs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          url="https://github.com/terraform-docs/terraform-docs/releases/download/${TFDOCS_VERSION}/terraform-docs-${TFDOCS_VERSION}-linux-amd64.tar.gz"
+
+          curl -sSLo /tmp/tfdocs.tar.gz "$url"
+
+          tar -xzf /tmp/tfdocs.tar.gz \
+            -C /tmp \
+            terraform-docs
+
+          sudo install \
+            -m 0755 \
+            /tmp/terraform-docs \
+            /usr/local/bin/terraform-docs
+
+      - name: Validate READMEs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fail=0
+
+          for module in modules/*/; do
+            echo "::group::$module"
+
+            terraform-docs \
+              -c .terraform-docs.yml \
+              --output-check \
+              "$module" || fail=1
+
+            echo "::endgroup::"
+          done
+
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::README desactualizado."
+            echo "::error::Ejecuta terraform-docs -c .terraform-docs.yml modules/<nombre>"
+            exit 1
+          fi
+  # Checkov
+  checkov:
+    name: checkov
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Checkov
+        run: pip install --quiet checkov
+
+      - name: Run Checkov
+        run: |
+          checkov \
+            --directory modules \
+            --framework terraform \
+            --download-external-modules false \
+            --compact \
+            --quiet
