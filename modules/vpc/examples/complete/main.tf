@@ -14,7 +14,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.40, < 7.0"
+      version = ">= 6.0, < 7.0"
     }
   }
 }
@@ -28,60 +28,6 @@ provider "aws" {
       Owner      = "platform@consultora.com"
       CostCenter = "CC-0001"
       Repository = "github.com/consultora/tf-modules-pi"
-    }
-  }
-}
-
-data "aws_caller_identity" "current" {}
-
-###############################################################################
-# KMS key for the flow logs log group.
-# In a real deployment this comes from the security/kms module, not from here.
-###############################################################################
-
-resource "aws_kms_key" "logs" {
-  description             = "CMK for VPC flow logs (example)"
-  deletion_window_in_days = 7
-  enable_key_rotation     = true
-
-  policy = data.aws_iam_policy_document.kms_logs.json
-}
-
-resource "aws_kms_alias" "logs" {
-  name          = "alias/demo-prod-flow-logs"
-  target_key_id = aws_kms_key.logs.key_id
-}
-
-data "aws_iam_policy_document" "kms_logs" {
-  statement {
-    sid       = "AllowAccountAdmin"
-    effect    = "Allow"
-    actions   = ["kms:*"]
-    resources = ["*"]
-
-    principals {
-      type        = "AWS"
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
-    }
-  }
-
-  statement {
-    sid    = "AllowCloudWatchLogs"
-    effect = "Allow"
-
-    actions = [
-      "kms:Encrypt*",
-      "kms:Decrypt*",
-      "kms:ReEncrypt*",
-      "kms:GenerateDataKey*",
-      "kms:Describe*",
-    ]
-
-    resources = ["*"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["logs.${var.region}.amazonaws.com"]
     }
   }
 }
@@ -135,7 +81,7 @@ module "vpc" {
   flow_logs_traffic_type             = "ALL"
   flow_logs_retention_days           = 365
   flow_logs_max_aggregation_interval = 60
-  flow_logs_kms_key_arn              = aws_kms_key.logs.arn
+  flow_logs_kms_key_arn              = var.flow_logs_kms_key_arn
 
   manage_default_security_group = true
 
@@ -159,6 +105,12 @@ variable "region" {
   description = "AWS region to deploy the example into."
   type        = string
   default     = "us-east-1"
+}
+
+variable "flow_logs_kms_key_arn" {
+  description = "ARN de la CMK que cifra el log group de flow logs. En un despliegue real lo produce el modulo security/kms; null usa la clave gestionada por AWS."
+  type        = string
+  default     = null
 }
 
 output "vpc_id" {

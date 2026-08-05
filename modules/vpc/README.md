@@ -2,7 +2,7 @@
 
 Red base multi-AZ de tres capas sobre AWS
 
-> **Spec de diseño:** [`docs/modules/01-networking-vpc.md`](../../docs/modules/01-networking-vpc.md)
+> **Spec de diseño:** [`docs/modules/01-vpc.md`](../../docs/modules/01-vpc.md)
 
 ---
 
@@ -131,7 +131,7 @@ terraform destroy   # debe dejar cero recursos
 | Nombre | Versión |
 | :--- | :--- |
 | `terraform` | `~> 1.9` |
-| `aws` | `>= 5.40, < 7.0` |
+| `aws` | `>= 6.0, < 7.0` |
 
 ---
 
@@ -143,13 +143,13 @@ terraform destroy   # debe dejar cero recursos
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.9 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.40, < 7.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 6.0, < 7.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.40, < 7.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 6.0, < 7.0 |
 
 ## Resources
 
@@ -206,7 +206,7 @@ terraform destroy   # debe dejar cero recursos
 | <a name="input_flow_logs_destination_type"></a> [flow\_logs\_destination\_type](#input\_flow\_logs\_destination\_type) | Donde se almacenaran los VPC Flow Logs. Puede ser CloudWatch o S3 | `string` | `"cloud-watch-logs"` | no |
 | <a name="input_flow_logs_kms_key_arn"></a> [flow\_logs\_kms\_key\_arn](#input\_flow\_logs\_kms\_key\_arn) | ARN de la clave KMS utilizada para cifrar el Log Group de CloudWatch. Si se deja en null, se utilizara la clave administrada por AWS | `string` | `null` | no |
 | <a name="input_flow_logs_max_aggregation_interval"></a> [flow\_logs\_max\_aggregation\_interval](#input\_flow\_logs\_max\_aggregation\_interval) | Intervalo de agregación de los VPC Flow Logs, en segundos. Los valores permitidos son 60 o 600. | `number` | `600` | no |
-| <a name="input_flow_logs_retention_days"></a> [flow\_logs\_retention\_days](#input\_flow\_logs\_retention\_days) | Cantidad de dias que se conserveran los VPC Flow Logs en el CloudWatchAgent logs | `number` | `90` | no |
+| <a name="input_flow_logs_retention_days"></a> [flow\_logs\_retention\_days](#input\_flow\_logs\_retention\_days) | Dias de retencion de los VPC Flow Logs en CloudWatch Logs. Si es null se deriva del entorno: dev 30, stg 90, prod 365. Nunca 0: la retencion infinita es la causa mas comun de crecimiento silencioso de factura. | `number` | `null` | no |
 | <a name="input_flow_logs_s3_destination_arn"></a> [flow\_logs\_s3\_destination\_arn](#input\_flow\_logs\_s3\_destination\_arn) | ARN del bucket S3 donde se almacenarán los VPC Flow Logs. Este valor es obligatorio cuando el destino es S3. El bucket debe existir previamente | `string` | `null` | no |
 | <a name="input_flow_logs_traffic_type"></a> [flow\_logs\_traffic\_type](#input\_flow\_logs\_traffic\_type) | Especifica el tipo de tráfico que registrarán los VPC Flow Logs: ACCEPT, REJECT o ALL. | `string` | `"ALL"` | no |
 | <a name="input_instance_tenancy"></a> [instance\_tenancy](#input\_instance\_tenancy) | tipo de tenacy para las instancias EC2 lanzadas dentro de la VPC | `string` | `"default"` | no |
@@ -273,7 +273,7 @@ terraform destroy   # debe dejar cero recursos
 | `nat_gateway_mode` | `string` | `one_per_az` | `none` \| `single` \| `one_per_az` |
 | `create_database_subnets` | `bool` | `true` | capa de datos aislada |
 | `enable_flow_logs` | `bool` | `true` | |
-| `flow_logs_retention_days` | `number` | `90` | nunca `0` |
+| `flow_logs_retention_days` | `number` | `null` | deriva del entorno: dev 30, stg 90, prod 365 |
 | `enable_s3_endpoint` | `bool` | `true` | gratis |
 | `interface_endpoint_services` | `list(string)` | `[]` | coste por AZ, validar precio vigente antes de activar |
 | `manage_default_security_group` | `bool` | `true` | |

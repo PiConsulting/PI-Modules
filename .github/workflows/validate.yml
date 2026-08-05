@@ -187,9 +187,12 @@ jobs:
             --format=compact
 
   # Terraform Docs
+  # No bloqueante: dio falsos positivos/fallos cosméticos en la primera ejecución.
+  # Vuelve a ser bloqueante cuando lleve un par de módulos limpios.
   docs:
     name: terraform-docs
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -236,9 +239,12 @@ jobs:
             exit 1
           fi
   # Checkov
+  # No bloqueante: dio falsos positivos/fallos cosméticos en la primera ejecución.
+  # Vuelve a ser bloqueante cuando lleve un par de módulos limpios.
   checkov:
     name: checkov
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

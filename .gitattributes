@@ -1,0 +1,30 @@
+# Todo el repositorio está actualmente en CRLF (Windows). El CI corre en Linux,
+# donde terraform fmt y terraform-docs generan LF. Sin normalizar, los checks de
+# formato y de documentación fallan por diferencias de fin de línea, no por
+# contenido - que es el tipo de fallo que más tiempo hace perder.
+
+# Normaliza a LF en el repositorio para todo lo que sea texto.
+* text=auto eol=lf
+
+# Explícito para lo que toca el CI.
+*.tf        text eol=lf
+*.tftest.hcl text eol=lf
+*.hcl       text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.sh        text eol=lf
+Makefile    text eol=lf
+
+# Binarios: que git no los toque.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.pdf       binary
+*.zip       binary
+
+# Diffs más legibles en HCL.
+*.tf        diff=terraform
+*.hcl       diff=terraform

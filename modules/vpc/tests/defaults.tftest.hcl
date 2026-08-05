@@ -22,12 +22,12 @@
 
 mock_provider "aws" {
 
-  # Sin esto, data.aws_region.current.name devuelve una cadena aleatoria y los
+  # Sin esto, data.aws_region.current.region devuelve una cadena aleatoria y los
   # nombres de los VPC endpoints salen distintos en cada ejecución. Fijándolo,
   # el plan es determinista y se puede afirmar sobre él.
   mock_data "aws_region" {
     defaults = {
-      name        = "us-east-1"
+      region      = "us-east-1"
       description = "US East (N. Virginia)"
     }
   }
@@ -105,8 +105,8 @@ run "defaults_are_secure_and_resilient" {
   }
 
   assert {
-    condition     = aws_cloudwatch_log_group.flow_logs[0].retention_in_days == 90
-    error_message = "Flow log retention must be finite by default."
+    condition     = aws_cloudwatch_log_group.flow_logs[0].retention_in_days == 30
+    error_message = "En dev la retencion por defecto debe ser 30 dias"
   }
 
   assert {
@@ -206,4 +206,31 @@ run "never_expire_log_retention_is_rejected" {
   }
 
   expect_failures = [var.flow_logs_retention_days]
+}
+
+run "prod_defaults_to_one_year_retention" {
+  command = plan
+
+  variables {
+    environment = "prod"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.flow_logs[0].retention_in_days == 365
+    error_message = "En prod la retencion por defecto debe ser 365 dias (CKV_AWS_338)."
+  }
+}
+
+run "explicit_retention_overrides_environment_default" {
+  command = plan
+
+  variables {
+    environment              = "prod"
+    flow_logs_retention_days = 731
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.flow_logs[0].retention_in_days == 731
+    error_message = "Un valor explicito debe ganar sobre el default por entorno."
+  }
 }

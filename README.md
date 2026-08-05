@@ -24,22 +24,22 @@ module "vpc" {
 | Módulo | Estado | Qué resuelve |
 |---|---|---|
 | [`vpc`](modules/vpc/) | 🟢 **v1.0.0** | Red base multi-AZ de tres capas, NAT configurable, endpoints y flow logs |
-| `security/security-groups` | ⚪ siguiente | Reglas entre capas sin exposición accidental |
-| `security/iam-role` | ⚪ planificado | Roles de menor privilegio con confianza acotada |
-| `security/kms` | ⚪ planificado | Claves gestionadas con rotación y políticas |
-| `storage/s3` | ⚪ planificado | Buckets privados, cifrados, con lifecycle |
-| `networking/acm` | ⚪ planificado | Certificados con validación DNS automatizada |
-| `networking/cloudfront` | ⚪ planificado | Distribución de edge con OAC y WAF |
-| `security/waf` | ⚪ planificado | Reglas gestionadas y rate limiting |
-| `compute/alb` | ⚪ planificado | Balanceo con health checks y TLS moderno |
-| `compute/ecs-fargate` | ⚪ planificado | Servicios de contenedores con autoscaling |
-| `data/rds-aurora` | ⚪ planificado | Bases de datos multi-AZ cifradas con backups |
-| `security/secrets-manager` | ⚪ planificado | Credenciales sin hardcode, con rotación |
-| `observability/cloudwatch` | ⚪ planificado | Logs, métricas, alarmas y dashboards |
-| `security/guardduty` | ⚪ planificado | Detección de amenazas |
-| `security/security-hub` | ⚪ planificado | Consolidación de hallazgos, CIS/FSBP |
-| `finops/budgets` | ⚪ planificado | Presupuestos y detección de anomalías de coste |
-| `platform/ci-cd` | ⚪ planificado | OIDC, backend de state y workflows |
+| `security-groups` | ⚪ siguiente | Reglas entre capas sin exposición accidental |
+| `iam-role` | ⚪ planificado | Roles de menor privilegio con confianza acotada |
+| `kms` | ⚪ planificado | Claves gestionadas con rotación y políticas |
+| `s3` | ⚪ planificado | Buckets privados, cifrados, con lifecycle |
+| `acm` | ⚪ planificado | Certificados con validación DNS automatizada |
+| `cloudfront` | ⚪ planificado | Distribución de edge con OAC y WAF |
+| `waf` | ⚪ planificado | Reglas gestionadas y rate limiting |
+| `alb` | ⚪ planificado | Balanceo con health checks y TLS moderno |
+| `ecs-fargate` | ⚪ planificado | Servicios de contenedores con autoscaling |
+| `rds-aurora` | ⚪ planificado | Bases de datos multi-AZ cifradas con backups |
+| `secrets-manager` | ⚪ planificado | Credenciales sin hardcode, con rotación |
+| `cloudwatch` | ⚪ planificado | Logs, métricas, alarmas y dashboards |
+| `guardduty` | ⚪ planificado | Detección de amenazas |
+| `security-hub` | ⚪ planificado | Consolidación de hallazgos, CIS/FSBP |
+| `budgets` | ⚪ planificado | Presupuestos y detección de anomalías de coste |
+| `ci-cd` | ⚪ planificado | OIDC, backend de state y workflows |
 
 Estados: 🟢 estable · 🟡 en desarrollo · ⚪ planificado
 
@@ -68,11 +68,11 @@ Estados: 🟢 estable · 🟡 en desarrollo · ⚪ planificado
 
 ## Versionado
 
-Tags por módulo: `<dominio>/<nombre>/vMAJOR.MINOR.PATCH`
+Tags por módulo: `<nombre>/vMAJOR.MINOR.PATCH`
 
 ```
-vpc/v1.0.0             # módulo con layout plano (sin dominio)
-security/kms/v1.0.0    # resto del catálogo, aún con prefijo de dominio
+vpc/v1.0.0
+kms/v1.0.0
 ```
 
 Los tags de plataforma (`platform/v2026.07.0`) agrupan un conjunto compatible de módulos.

@@ -277,13 +277,17 @@ variable "flow_logs_traffic_type" {
 }
 
 variable "flow_logs_retention_days" {
-  description = "Cantidad de dias que se conserveran los VPC Flow Logs en el CloudWatchAgent logs"
+  description = "Dias de retencion de los VPC Flow Logs en CloudWatch Logs. Si es null se deriva del entorno: dev 30, stg 90, prod 365. Nunca 0: la retencion infinita es la causa mas comun de crecimiento silencioso de factura."
   type        = number
-  default     = 90
+  default     = null
 
   validation {
-    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.flow_logs_retention_days)
-    error_message = "flow_logs_retention_days debe ser uno de los valores de retencion permitidos por CloudWatch Logs"
+    # El condicional corta antes de llamar a contains() cuando el valor es null.
+    condition = var.flow_logs_retention_days == null ? true : contains(
+      [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653],
+      var.flow_logs_retention_days
+    )
+    error_message = "flow_logs_retention_days debe ser null o uno de los valores de retencion permitidos por CloudWatch Logs. El 0 (never expire) no esta permitido."
   }
 }
 

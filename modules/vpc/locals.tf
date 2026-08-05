@@ -143,6 +143,12 @@ locals {
 
   flow_logs_to_cloudwatch = var.enable_flow_logs && var.flow_logs_destination_type == "cloud-watch-logs"
   flow_logs_to_s3         = var.enable_flow_logs && var.flow_logs_destination_type == "s3"
+  flow_logs_retention_by_environment = {
+    dev  = 30
+    stg  = 90
+    prod = 365
+  }
+  flow_logs_retention_days = var.flow_logs_retention_days != null ? var.flow_logs_retention_days : local.flow_logs_retention_by_environment[var.environment]
 
 }
 

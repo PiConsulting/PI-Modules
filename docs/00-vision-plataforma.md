@@ -215,39 +215,39 @@ módulos, **(c)** cuánto dolor evita si está mal hecho.
 
 | # | Módulo | Por qué es Tier 0 | Esfuerzo |
 |---|---|---|---|
-| 1 | **networking/vpc** | Todo se despliega dentro. El error más caro de corregir a posteriori (rediseñar CIDRs con carga en producción es una migración, no un cambio) | 5 d |
-| 2 | **security/security-groups** | Superficie de exposición. Un SG mal hecho es una brecha | 2 d |
-| 3 | **security/iam-role** | Todo servicio necesita un rol. Define la postura de menor privilegio | 3 d |
-| 4 | **security/kms** | Cifrado en reposo transversal. Meterlo después obliga a recrear recursos | 2 d |
+| 1 | **vpc** | Todo se despliega dentro. El error más caro de corregir a posteriori (rediseñar CIDRs con carga en producción es una migración, no un cambio) | 5 d |
+| 2 | **security-groups** | Superficie de exposición. Un SG mal hecho es una brecha | 2 d |
+| 3 | **iam-role** | Todo servicio necesita un rol. Define la postura de menor privilegio | 3 d |
+| 4 | **kms** | Cifrado en reposo transversal. Meterlo después obliga a recrear recursos | 2 d |
 
 ### Tier 1 — Bloques de aplicación
 
 | # | Módulo | Notas | Esfuerzo |
 |---|---|---|---|
-| 5 | **storage/s3** | Logs, artefactos, contenido estático. Base de todo | 2 d |
-| 6 | **networking/acm** | Bloquea CloudFront y ALB. Validación DNS automatizada | 1 d |
-| 7 | **networking/cloudfront** | Edge, caché, TLS, WAF asociado | 3 d |
-| 8 | **security/waf** | Reglas gestionadas + rate limiting. Quick win de seguridad muy visible | 2 d |
-| 9 | **compute/alb** | Entrada al cómputo, health checks, listeners, reglas | 3 d |
-| 10 | **compute/ecs-fargate** | El corazón del MVP: cluster, service, task def, autoscaling | 5 d |
-| 11 | **data/rds-aurora** | Multi-AZ, cifrado, backups, ventanas de mantenimiento | 4 d |
-| 12 | **security/secrets-manager** | Credenciales sin hardcode, rotación | 2 d |
+| 5 | **s3** | Logs, artefactos, contenido estático. Base de todo | 2 d |
+| 6 | **acm** | Bloquea CloudFront y ALB. Validación DNS automatizada | 1 d |
+| 7 | **cloudfront** | Edge, caché, TLS, WAF asociado | 3 d |
+| 8 | **waf** | Reglas gestionadas + rate limiting. Quick win de seguridad muy visible | 2 d |
+| 9 | **alb** | Entrada al cómputo, health checks, listeners, reglas | 3 d |
+| 10 | **ecs-fargate** | El corazón del MVP: cluster, service, task def, autoscaling | 5 d |
+| 11 | **rds-aurora** | Multi-AZ, cifrado, backups, ventanas de mantenimiento | 4 d |
+| 12 | **secrets-manager** | Credenciales sin hardcode, rotación | 2 d |
 
 ### Tier 2 — Operación y gobierno
 
 | # | Módulo | Notas | Esfuerzo |
 |---|---|---|---|
-| 13 | **observability/cloudwatch** | Log groups, retención, métricas, alarmas, dashboard | 3 d |
-| 14 | **security/guardduty** | Detección de amenazas. Casi gratis de implementar | 1 d |
-| 15 | **security/security-hub** | Consolidación de findings, standards CIS/FSBP | 1 d |
-| 16 | **finops/budgets** | Budgets + Cost Anomaly Detection + alertas | 2 d |
-| 17 | **platform/ci-cd** | Rol OIDC para GitHub Actions, backend S3+DynamoDB, workflows | 4 d |
+| 13 | **cloudwatch** | Log groups, retención, métricas, alarmas, dashboard | 3 d |
+| 14 | **guardduty** | Detección de amenazas. Casi gratis de implementar | 1 d |
+| 15 | **security-hub** | Consolidación de findings, standards CIS/FSBP | 1 d |
+| 16 | **budgets** | Budgets + Cost Anomaly Detection + alertas | 2 d |
+| 17 | **ci-cd** | Rol OIDC para GitHub Actions, backend S3+DynamoDB, workflows | 4 d |
 
 ### Tier 3 — Extensión por arquitectura (post-MVP)
 
-`compute/lambda`, `api/api-gateway`, `data/dynamodb`, `networking/route53`,
-`compute/ecr`, `data/elasticache`, `governance/organizations`, `governance/scp`,
-`data/glue-athena`, `networking/transit-gateway`.
+`lambda`, `api-gateway`, `dynamodb`, `route53`,
+`ecr`, `elasticache`, `organizations`, `scp`,
+`glue-athena`, `transit-gateway`.
 
 ### Regla de oro de la priorización
 
@@ -284,28 +284,25 @@ tf-modules-pi/
 │   ├── 01-convenciones.md           # Naming, tagging, versionado, estilo
 │   ├── 02-arquitecturas/            # Fichas de las arquitecturas de referencia
 │   └── modules/                     # Una spec por módulo
-│       └── 01-networking-vpc.md
+│       └── 01-vpc.md
 ├── modules/
-│   ├── networking/
-│   │   ├── vpc/
-│   │   ├── acm/
-│   │   └── cloudfront/
-│   ├── security/
-│   │   ├── security-groups/
-│   │   ├── iam-role/
-│   │   ├── kms/
-│   │   └── waf/
-│   ├── compute/
-│   │   ├── alb/
-│   │   └── ecs-fargate/
-│   ├── data/
-│   │   └── rds-aurora/
-│   ├── observability/
-│   │   └── cloudwatch/
-│   ├── finops/
-│   │   └── budgets/
-│   └── platform/
-│       └── ci-cd/
+│   ├── vpc/
+│   ├── security-groups/
+│   ├── iam-role/
+│   ├── kms/
+│   ├── waf/
+│   ├── acm/
+│   ├── cloudfront/
+│   ├── alb/
+│   ├── ecs-fargate/
+│   ├── rds-aurora/
+│   ├── secrets-manager/
+│   ├── s3/
+│   ├── cloudwatch/
+│   ├── guardduty/
+│   ├── security-hub/
+│   ├── budgets/
+│   └── ci-cd/
 ├── patterns/                        # Composiciones de módulos = arquitecturas completas
 │   ├── web-app-ecs/
 │   ├── static-site/
@@ -317,7 +314,7 @@ tf-modules-pi/
 ### 5.2 Anatomía obligatoria de un módulo
 
 ```
-modules/<dominio>/<nombre>/
+modules/<nombre>/
 ├── README.md          # Generado por terraform-docs + secciones manuales
 ├── versions.tf        # required_version + required_providers (rangos, no pins exactos)
 ├── variables.tf       # Toda entrada, con description, type y validation
@@ -345,12 +342,12 @@ modules/<dominio>/<nombre>/
 
 ### 5.3 Versionado con tags Git
 
-**Formato:** `<dominio>/<módulo>/vMAJOR.MINOR.PATCH`
+**Formato:** `<módulo>/vMAJOR.MINOR.PATCH`
 
 ```
-networking/vpc/v1.0.0
-networking/vpc/v1.1.0
-security/kms/v1.0.0
+vpc/v1.0.0
+vpc/v1.1.0
+kms/v1.0.0
 ```
 
 Esto permite que cada módulo evolucione a su propio ritmo dentro del monorepo. Además se
@@ -374,7 +371,7 @@ compatible de módulos — útil para decirle a un cliente "estás en la release
 ni una rama.
 
 ```hcl
-source = "git::https://github.com/consultora/tf-modules-pi.git//modules/networking/vpc?ref=networking/vpc/v1.2.0"
+source = "git::https://github.com/benjamin-cloud-pi/PI-Modules.git//modules/vpc?ref=vpc/v1.2.0"
 ```
 
 **Política de soporte:** se mantienen las dos últimas MAJOR de cada módulo. Al publicar
@@ -653,7 +650,7 @@ PR abierto
   └── terraform test         → sobre examples/minimal y examples/complete
 
 Merge a main
-  └── Tag <dominio>/<módulo>/vX.Y.Z → release automática con notas de cambio
+  └── Tag <módulo>/vX.Y.Z → release automática con notas de cambio
 ```
 
 ### 10.2 Pipeline del repo live
@@ -764,14 +761,14 @@ así?" y la respuesta no depende de que siga en la empresa quien lo decidió.
 
 Un módulo no se considera terminado hasta que cumple **las nueve**:
 
-- [ ] Código en `modules/<dominio>/<nombre>/` con la anatomía completa
+- [ ] Código en `modules/<nombre>/` con la anatomía completa
 - [ ] `examples/minimal` y `examples/complete` que pasan `terraform plan`
 - [ ] Desplegado **de verdad** en la cuenta de laboratorio, y destruido sin residuos
 - [ ] `README.md` completo con inputs/outputs generados
 - [ ] Spec de diseño en `docs/modules/`
 - [ ] CI en verde: fmt, validate, tflint, checkov, conftest, terraform-docs
 - [ ] Checklist de producción del módulo revisada
-- [ ] Tag `<dominio>/<nombre>/v1.0.0` publicada
+- [ ] Tag `<nombre>/v1.0.0` publicada
 - [ ] Consumido desde un repo live de ejemplo, funcionando
 
 ### 12.2 Ciclo por módulo (1–2 semanas)
@@ -850,7 +847,7 @@ Se construye siempre en `locals` a partir de variables, jamás se escribe litera
 | `Owner` | variable | `equipo-plataforma@acme.com` |
 | `CostCenter` | variable | `CC-1042` |
 | `ManagedBy` | fijo en el módulo | `terraform` |
-| `Module` | fijo en el módulo | `networking/vpc` |
+| `Module` | fijo en el módulo | `vpc` |
 | `Repository` | variable | `github.com/consultora/tf-live-acme` |
 
 Se aplican vía `default_tags` en el provider (root) **más** tags de recurso en el módulo.
@@ -877,6 +874,6 @@ automatización.
 
 ---
 
-**Siguiente paso:** módulo 1 — Networking/VPC. Spec en
-[`docs/modules/01-networking-vpc.md`](modules/01-networking-vpc.md), implementación en
-[`modules/networking/vpc/`](../modules/networking/vpc/).
+**Siguiente paso:** módulo 1 — VPC. Spec en
+[`docs/modules/01-vpc.md`](modules/01-vpc.md), implementación en
+[`modules/vpc/`](../modules/vpc/).
