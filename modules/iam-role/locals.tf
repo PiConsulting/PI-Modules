@@ -50,7 +50,11 @@ locals {
   }
 
   statements_by_policy = {
-    for k, doc in local.decoded_policies : k => flatten([doc.Statement])
+    for k, doc in local.decoded_policies : k => (
+      # Si Statement tiene el campo Effect, es un único statement (objeto)
+      # Si no, ya es una lista de statements
+      try(doc.Statement.Effect, null) != null ? [doc.Statement] : try(doc.Statement, [])
+    )
   }
 
   all_statements = flatten([
