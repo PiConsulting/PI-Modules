@@ -50,9 +50,7 @@ locals {
   }
 
   statements_by_policy = {
-    for k, doc in local.decoded_policies : k => (
-      can(doc.Statement.Effect) ? [doc.Statement] : doc.Statement
-    )
+    for k, doc in local.decoded_policies : k => flatten([doc.Statement])
   }
 
   all_statements = flatten([
@@ -66,8 +64,8 @@ locals {
       policy        = s._policy
       sid           = try(s.Sid, "")
       effect        = try(s.Effect, "Allow")
-      actions       = can(tostring(try(s.Action, []))) ? [tostring(s.Action)] : try(s.Action, [])
-      resources     = can(tostring(try(s.Resource, []))) ? [tostring(s.Resource)] : try(s.Resource, [])
+      actions       = flatten([try(s.Action, [])])
+      resources     = flatten([try(s.Resource, [])])
       has_condition = can(s.Condition)
     }
   ]
