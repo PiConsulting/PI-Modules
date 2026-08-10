@@ -1,52 +1,52 @@
 variable "name" {
-  description   = "Nombre del rol. Convencion: <cliente>-<entorno>-<rol>"
-  type          = string
+  description = "Nombre del rol. Convencion: <cliente>-<entorno>-<rol>"
+  type        = string
 
   validation {
-    condition       = can(regex("^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$", var.name))
-    error_message   = "name debe tener entre 3 y 64 caracteres, solo minusculasm numeros y guiones, sin empezar ni terminar con guion"
+    condition     = can(regex("^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$", var.name))
+    error_message = "name debe tener entre 3 y 64 caracteres, solo minusculasm numeros y guiones, sin empezar ni terminar con guion"
   }
 }
 
 variable "environment" {
-  description   = "Entorno de despliegue"
-  type          = string
+  description = "Entorno de despliegue"
+  type        = string
 
   validation {
-    condition       = contains(["dev", "stg", "prod"], var.environment)
-    error_message   = "debe ser un environment: dev, stg o prod"
+    condition     = contains(["dev", "stg", "prod"], var.environment)
+    error_message = "debe ser un environment: dev, stg o prod"
   }
 }
 
 variable "description" {
-  description   = "descripcion del rol"
-  type          = string
+  description = "descripcion del rol"
+  type        = string
 
   validation {
-    condition       = length(trimspace(var.description)) >= 10
-    error_message   = "description debe tener al menos 10 caracteres utiles, explica que hace el rol, no que es un rol"
+    condition     = length(trimspace(var.description)) >= 10
+    error_message = "description debe tener al menos 10 caracteres utiles, explica que hace el rol, no que es un rol"
   }
 }
 
 variable "path" {
-  description   = "ruta IAM del rol, util para organizarse en terminos de equipos o servicios"
-  type          = string
-  default       = "/"
+  description = "ruta IAM del rol, util para organizarse en terminos de equipos o servicios"
+  type        = string
+  default     = "/"
 
   validation {
-    condition       = can(regex("^/([a-zA-Z0-9+=,.@_-]+/)*$", var.path))
-    error_message   = "path debe empezar y terminar con / , por ejemplo / o /plataforma/."
+    condition     = can(regex("^/([a-zA-Z0-9+=,.@_-]+/)*$", var.path))
+    error_message = "path debe empezar y terminar con / , por ejemplo / o /plataforma/."
   }
 }
 
 variable "max_session_duration" {
-  description   = "duracion maxima de una sesion asumida, en segundos. El default es 1 hora: AWS permite hasta 12, pero un default no debe ser nunca al maximo"
-  type          = number
-  default       = 3600
+  description = "duracion maxima de una sesion asumida, en segundos. El default es 1 hora: AWS permite hasta 12, pero un default no debe ser nunca al maximo"
+  type        = number
+  default     = 3600
 
   validation {
-    condition       = var.max_session_duration >= 3600 && var.max_session_duration <= 43200
-    error_message   = "max_session_duration debe estar entre 3600 (1 hora) y 43200 (12 horas)"
+    condition     = var.max_session_duration >= 3600 && var.max_session_duration <= 43200
+    error_message = "max_session_duration debe estar entre 3600 (1 hora) y 43200 (12 horas)"
   }
 }
 
@@ -58,10 +58,10 @@ variable "max_session_duration" {
 # puede asumir el rol que la lleva.
 ###############################################################################
 
-variable "tusted_services" {
-  description   = "principales servicios que pueden asumir el rol, ej: [\"ecs-task.amazonaws\\.com$]"
-  type          = list(string)
-  default       = []
+variable "trusted_services" {
+  description = "principales servicios que pueden asumir el rol, ej: [\"ecs-task.amazonaws\\.com$]"
+  type        = list(string)
+  default     = []
 
   validation {
     condition = alltrue([
@@ -80,7 +80,7 @@ variable "trusted_account_ids" {
   description = "Cuentas de AWS que pueden asumir el rol. Exige external_id: sin condicion, cualquiera de esa cuenta con permiso de sts:AssumeRole puede asumirlo."
   type        = list(string)
   default     = []
- 
+
   validation {
     condition = alltrue([
       for a in var.trusted_account_ids : can(regex("^[0-9]{12}$", a))
@@ -93,7 +93,7 @@ variable "external_id" {
   description = "Identificador compartido con el tercero, exigido en la politica de confianza cross-account. NO lo pongas en un tfvars: sale de Secrets Manager o de una variable del pipeline."
   type        = string
   default     = null
- 
+
   validation {
     condition = (
       length(var.trusted_account_ids) == 0 ||
@@ -107,7 +107,7 @@ variable "trusted_source_account" {
   description = "Cuenta que se exige en la condicion aws:SourceAccount para los principales de servicio. Evita que un servicio de AWS actuando en nombre de otra cuenta pueda asumir el rol."
   type        = string
   default     = null
- 
+
   validation {
     condition     = var.trusted_source_account == null ? true : can(regex("^[0-9]{12}$", var.trusted_source_account))
     error_message = "trusted_source_account debe ser un ID de cuenta de AWS de 12 digitos."
@@ -117,12 +117,12 @@ variable "trusted_source_account" {
 ###############################################################################
 # Permisos
 ###############################################################################
- 
+
 variable "managed_policy_arns" {
   description = "ARNs de politicas gestionadas a adjuntar, de AWS o del cliente."
   type        = list(string)
   default     = []
- 
+
   validation {
     condition = alltrue([
       for a in var.managed_policy_arns :
@@ -136,20 +136,20 @@ variable "inline_policies" {
   description = "Politicas propias del rol, indexadas por un nombre descriptivo. El valor es el .json de un aws_iam_policy_document construido en el root: no escribas JSON a mano. Se crean como inline para que se borren con el rol y no queden politicas huerfanas en la cuenta."
   type        = map(string)
   default     = {}
- 
-    validation {
-        condition = alltrue([
-            for k, v in var.inline_policies : can(jsondecode(v))
-        ])
-        error_message = "Cada valor de inline_policies debe ser JSON valido. Usa data.aws_iam_policy_document.<x>.json en lugar de escribirlo a mano."
-    }
 
-    validation {
-        condition = alltrue([
-            for k, v in var.inline_policies : can(jsondecode(v).Statement)
-        ])
-        error_message = "Cada politica de inline_policies debe tener una clave Statement. Parece un documento de politica incompleto."
-    }
+  validation {
+    condition = alltrue([
+      for k, v in var.inline_policies : can(jsondecode(v))
+    ])
+    error_message = "Cada valor de inline_policies debe ser JSON valido. Usa data.aws_iam_policy_document.<x>.json en lugar de escribirlo a mano."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.inline_policies : can(jsondecode(v).Statement)
+    ])
+    error_message = "Cada politica de inline_policies debe tener una clave Statement. Parece un documento de politica incompleto."
+  }
 }
 
 ###############################################################################
@@ -168,7 +168,7 @@ variable "permissions_boundary_arn" {
   description = "ARN de la politica que actua como limite de permisos. El modulo no la crea: es responsabilidad del equipo de seguridad o del modulo iam-policy."
   type        = string
   default     = null
- 
+
   validation {
     condition     = var.permissions_boundary_arn == null ? true : can(regex("^arn:aws[a-z-]*:iam::(aws|[0-9]{12}):policy/", var.permissions_boundary_arn))
     error_message = "permissions_boundary_arn debe ser un ARN de politica IAM valido."
@@ -179,7 +179,7 @@ variable "boundary_exempt_reason" {
   description = "Justificacion escrita de por que este rol no lleva limite de permisos. Solo se usa si permissions_boundary_arn es null. Queda en el codigo y es revisable en un pull request, que es justo el punto."
   type        = string
   default     = null
- 
+
   validation {
     condition = (
       var.permissions_boundary_arn != null ||
@@ -194,13 +194,13 @@ variable "boundary_exempt_reason" {
 ###############################################################################
 
 variable "create_instance_profile" {
-  description   = "crear un instance profile asociado al rol. Solo lo necesitan EC2 y los asg; para lamba, EC2 o RDS sirve"
-  type          = bool
-  default       = false
+  description = "crear un instance profile asociado al rol. Solo lo necesitan EC2 y los asg; para lamba, EC2 o RDS sirve"
+  type        = bool
+  default     = false
 }
 
 variable "tags" {
-  description   = "tags aplicados al rol. Se esperan las asignaciones: Project, Owner, CostCenter"
-  type          = map(string)
-  default = {}
+  description = "tags aplicados al rol. Se esperan las asignaciones: Project, Owner, CostCenter"
+  type        = map(string)
+  default     = {}
 }

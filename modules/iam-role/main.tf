@@ -11,53 +11,53 @@
 data "aws_partition" "current" {}
 
 data "aws_iam_policy_document" "assume_role" {
-    # Principales de servicio: EC2, Lambda, ECS Tasks, etc.
-    dynamic "statement" {
-      for_each = local.has_service_trust
+  # Principales de servicio: EC2, Lambda, ECS Tasks, etc.
+  dynamic "statement" {
+    for_each = local.has_service_trust ? [1] : []
 
-      content {
-        sid     = "ConfianzaDeServicios"
-        effect  = "Allow"
-        actions = [ "sts:AssumeRole" ]
+    content {
+      sid     = "ConfianzaDeServicios"
+      effect  = "Allow"
+      actions = ["sts:AssumeRole"]
 
-        principals {
-          type = "Service"
-          identifiers = var.tusted_services
-        }
-        # Restringe el acceso a la cuenta de origen para reducir el riesgo de
-        # confused deputy cuando el servicio admite aws:SourceAccount.
-        dynamic "condition" {
-          for_each = var.trusted_source_account != null ? [1] : []
+      principals {
+        type        = "Service"
+        identifiers = var.trusted_services
+      }
+      # Restringe el acceso a la cuenta de origen para reducir el riesgo de
+      # confused deputy cuando el servicio admite aws:SourceAccount.
+      dynamic "condition" {
+        for_each = var.trusted_source_account != null ? [1] : []
 
-          content {
-            test        = "StringEquals"
-            variable    = "aws:SourceAccount"
-            values      = [ var.trusted_source_account ]
-          }
+        content {
+          test     = "StringEquals"
+          variable = "aws:SourceAccount"
+          values   = [var.trusted_source_account]
         }
       }
     }
+  }
 
-    dynamic "statement" {
-      for_each = local.has_account_trust ? [1] : []
+  dynamic "statement" {
+    for_each = local.has_account_trust ? [1] : []
 
-      content {
-        sid     = "ConfianzaCrossAccount"
-        effect  = "Allow"
-        actions = ["sts:AssumeRole"]
+    content {
+      sid     = "ConfianzaCrossAccount"
+      effect  = "Allow"
+      actions = ["sts:AssumeRole"]
 
-        principals {
-          type          = "AWS"
-          identifiers   = local.trusted_account_arns
-        }
+      principals {
+        type        = "AWS"
+        identifiers = local.trusted_account_arns
+      }
 
-        condition {
-          test      = "StringEquals"
-          variable  = "sts:ExternalId"
-          values    = [var.external_id]
-        }
+      condition {
+        test     = "StringEquals"
+        variable = "sts:ExternalId"
+        values   = [var.external_id]
       }
     }
+  }
 }
 
 
@@ -82,38 +82,38 @@ resource "aws_iam_role" "this" {
   max_session_duration  = var.max_session_duration
   assume_role_policy    = data.aws_iam_policy_document.assume_role.json
   permissions_boundary  = var.permissions_boundary_arn
-  force_detach_policies = true 
+  force_detach_policies = true
 
   tags = merge(
     local.tags,
     { Name = var.name }
   )
 
-    ###########################################################################
-    # Las comprobaciones que justifican que este modulo exista.
-    #
-    # Van en precondition y no en validation porque necesitan el jsondecode y la
-    # normalizacion de locals.tf, y un bloque validation solo puede referenciar
-    # variables. Siguen disparandose en plan, que es lo que importa: fallar en
-    # plan es cien veces mas barato que fallar en apply.
-    ###########################################################################
+  ###########################################################################
+  # Las comprobaciones que justifican que este modulo exista.
+  #
+  # Van en precondition y no en validation porque necesitan el jsondecode y la
+  # normalizacion de locals.tf, y un bloque validation solo puede referenciar
+  # variables. Siguen disparandose en plan, que es lo que importa: fallar en
+  # plan es cien veces mas barato que fallar en apply.
+  ###########################################################################
 
-    lifecycle {
-      precondition {
-        condition = length(local.wildcard_admin_statements) == 0
-        error_message = "Politica con Action '*' sobre Resource '*': concede acceso total a la cuenta. Statements afectados: ${join(", ", local.wildcard_admin_statements)}. Acota las acciones o los recursos."
-      }
-
-      precondition {
-        condition = length(local.unrestricted_passrole_statements) == 0 
-        error_message = "iam:PassRole sobre Resource '*' sin condicion: es el vector de escalada de privilegios mas comun de AWS, porque permite pasar el rol de administrador a un servicio y ejecutar codigo con el. Statements afectados: ${join(", ", local.unrestricted_passrole_statements)}. Restringe el Resource a los ARN de rol concretos."
-      }
-
-      precondition {
-        condition = length(local.unrestricted_assumerole_statements) == 0
-        error_message = "sts:AssumeRole sobre Resource '*' sin condicion: permite pivotar a cualquier rol de la cuenta. Statements afectados: ${join(", ", local.unrestricted_assumerole_statements)}. Restringe el Resource a los roles que realmente hay que asumir."
-      }
+  lifecycle {
+    precondition {
+      condition     = length(local.wildcard_admin_statements) == 0
+      error_message = "Politica con Action '*' sobre Resource '*': concede acceso total a la cuenta. Statements afectados: ${join(", ", local.wildcard_admin_statements)}. Acota las acciones o los recursos."
     }
+
+    precondition {
+      condition     = length(local.unrestricted_passrole_statements) == 0
+      error_message = "iam:PassRole sobre Resource '*' sin condicion: es el vector de escalada de privilegios mas comun de AWS, porque permite pasar el rol de administrador a un servicio y ejecutar codigo con el. Statements afectados: ${join(", ", local.unrestricted_passrole_statements)}. Restringe el Resource a los ARN de rol concretos."
+    }
+
+    precondition {
+      condition     = length(local.unrestricted_assumerole_statements) == 0
+      error_message = "sts:AssumeRole sobre Resource '*' sin condicion: permite pivotar a cualquier rol de la cuenta. Statements afectados: ${join(", ", local.unrestricted_assumerole_statements)}. Restringe el Resource a los roles que realmente hay que asumir."
+    }
+  }
 }
 
 
@@ -138,6 +138,21 @@ resource "aws_iam_role_policy_attachment" "this" {
 }
 
 ###############################################################################
+# Políticas inline del rol
+#
+# Se crean como inline para que se borren automáticamente con el rol y no
+# queden políticas huérfanas acumulándose en la cuenta.
+###############################################################################
+
+resource "aws_iam_role_policy" "this" {
+  for_each = var.inline_policies
+
+  name   = each.key
+  role   = aws_iam_role.this.name
+  policy = each.value
+}
+
+###############################################################################
 # Instance profile
 #
 # Solo lo necesitan EC2 y los grupos de autoescalado. Para Lambda, ECS o RDS
@@ -146,15 +161,15 @@ resource "aws_iam_role_policy_attachment" "this" {
 ###############################################################################
 
 resource "aws_iam_instance_profile" "this" {
-    count = var.create_instance_profile ? 1 : 0
+  count = var.create_instance_profile ? 1 : 0
 
-    name = var.name
-    path = var.path
-    role = aws_iam_role.this.name
+  name = var.name
+  path = var.path
+  role = aws_iam_role.this.name
 
-    tags = merge(
-        local.tags,
-        { Name = var.name }
-    )
-  
+  tags = merge(
+    local.tags,
+    { Name = var.name }
+  )
+
 }
