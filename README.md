@@ -24,8 +24,8 @@ module "vpc" {
 | Módulo | Estado | Qué resuelve |
 |---|---|---|
 | [`vpc`](modules/vpc/) | 🟢 **v1.0.0** | Red base multi-AZ de tres capas, NAT configurable, endpoints y flow logs |
-| `security-groups` | ⚪ siguiente | Reglas entre capas sin exposición accidental |
-| `iam-role` | ⚪ planificado | Roles de menor privilegio con confianza acotada |
+| [`sg`](modules/sg) | 🟢 **v1.0.0** | Reglas entre capas sin exposición accidental |
+| [`iam-role`](modules/iam-role)| 🟢 **v1.0.0**  | Roles de menor privilegio con confianza acotada |
 | `kms` | ⚪ planificado | Claves gestionadas con rotación y políticas |
 | `s3` | ⚪ planificado | Buckets privados, cifrados, con lifecycle |
 | `acm` | ⚪ planificado | Certificados con validación DNS automatizada |
