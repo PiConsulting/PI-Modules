@@ -26,7 +26,7 @@ module "vpc" {
 | [`vpc`](modules/vpc/) | 🟢 **v1.0.0** | Red base multi-AZ de tres capas, NAT configurable, endpoints y flow logs |
 | [`sg`](modules/sg) | 🟢 **v1.0.0** | Reglas entre capas sin exposición accidental |
 | [`iam-role`](modules/iam-role)| 🟢 **v1.0.0**  | Roles de menor privilegio con confianza acotada |
-| `kms` | ⚪ planificado | Claves gestionadas con rotación y políticas |
+| [`kms`](modules/kms) | 🟢 **v1.0.0**  | Claves gestionadas con rotación y políticas |
 | `s3` | ⚪ planificado | Buckets privados, cifrados, con lifecycle |
 | `acm` | ⚪ planificado | Certificados con validación DNS automatizada |
 | `cloudfront` | ⚪ planificado | Distribución de edge con OAC y WAF |
