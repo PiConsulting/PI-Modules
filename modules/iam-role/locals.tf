@@ -34,8 +34,15 @@ locals {
   #
   # Dos casos requieren un tratamiento especial:
   #
-  #   1. Statement puede ser un objeto o una lista de objetos.
-  #      Si Statement.Effect existe, se interpreta como un único statement.
+  #   1. Statement puede ser un objeto o una lista de objetos. Un ternario que
+  #      distinga ambos casos ("[doc.Statement] : doc.Statement") no sirve:
+  #      Terraform exige que ambas ramas de un condicional tengan un tipo
+  #      estaticamente unificable (tupla vs. objeto no lo son), y falla en
+  #      "plan" aunque la rama elegida en tiempo de ejecucion sea valida.
+  #      flatten([try(doc.Statement, [])]) evita el problema: envuelve el
+  #      objeto suelto en una lista de un elemento, o aplana la lista ya
+  #      existente, sin necesitar un condicional. Mismo patron que
+  #      custom_statements_raw en kms/locals.tf y s3/locals.tf.
   #
   #   2. Action y Resource pueden ser una cadena o una lista de valores.
   #      Se detecta el tipo antes de normalizarlos para evitar errores con
@@ -50,11 +57,7 @@ locals {
   }
 
   statements_by_policy = {
-    for k, doc in local.decoded_policies : k => (
-      # Si Statement tiene el campo Effect, es un único statement (objeto)
-      # Si no, ya es una lista de statements
-      try(doc.Statement.Effect, null) != null ? [doc.Statement] : try(doc.Statement, [])
-    )
+    for k, doc in local.decoded_policies : k => flatten([try(doc.Statement, [])])
   }
 
   all_statements = flatten([
