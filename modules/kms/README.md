@@ -200,3 +200,63 @@ output "kms_audit" {
 - [AWS KMS Best Practices](https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html)
 - [Key Policies](https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html)
 - [Grants](https://docs.aws.amazon.com/kms/latest/developerguide/grants.html)
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.9 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 6.0, < 7.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 6.0, < 7.0 |
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [aws_kms_alias.additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_alias) | resource |
+| [aws_kms_alias.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_alias) | resource |
+| [aws_kms_key.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_description"></a> [description](#input\_description) | Que cifra esta clave | `string` | n/a | yes |
+| <a name="input_environment"></a> [environment](#input\_environment) | Enorno de despliegue | `string` | n/a | yes |
+| <a name="input_name"></a> [name](#input\_name) | Nombre del componente, SIN el entorno: el modulo lo antepone al componer el alias (alias/<entorno>/<nombre>) y el tag Name (<entorno>-<nombre>-kms). Diverge a proposito de la convencion <cliente>-<entorno>-<componente> de iam-role y sg: el espacio de nombres de alias de KMS es plano por region, asi que sin ese prefijo dev y prod en la misma cuenta colisionarian. | `string` | n/a | yes |
+| <a name="input_additional_aliases"></a> [additional\_aliases](#input\_additional\_aliases) | Alias extra, SIN el prefijo alias/ (lo añade el módulo). Los alias son gratuitos e ilimitados en la práctica; el caso real es la migración entre claves, donde el alias antiguo apunta temporalmente a la nueva. | `set(string)` | `[]` | no |
+| <a name="input_deletion_window_in_days"></a> [deletion\_window\_in\_days](#input\_deletion\_window\_in\_days) | Días que la clave permanece en PendingDeletion antes de eliminarse. El valor por defecto es el máximo para permitir recuperación mediante kms:CancelKeyDeletion. CUIDADO: la clave sigue generando costos durante este período. | `number` | `30` | no |
+| <a name="input_extra_policy_json"></a> [extra\_policy\_json](#input\_extra\_policy\_json) | Statements adicionales de la key policy: el .json de un aws\_iam\_policy\_document construido en el root, no JSON escrito a mano. Se AÑADEN a los statements del módulo, no los reemplazan. El caso real es el acceso cross-account condicionado. El módulo inspecciona este documento y lo rechaza en plan si compromete el acceso a la propia clave. | `string` | `null` | no |
+| <a name="input_is_enabled"></a> [is\_enabled](#input\_is\_enabled) | Una clave deshabilitada no cifra ni descifra, pero no se borra ni se pierde. Es la palanca de contención ante un compromiso. Ponerlo en false rompe todo lo que dependa de la clave y el fallo no aparece en ningún log de aplicación: úsarlo a conciencia | `bool` | `true` | no |
+| <a name="input_key_administrators"></a> [key\_administrators](#input\_key\_administrators) | ARNs de roles o usuarios IAM que administran el ciclo de vida de la clave: crear, describir, etiquetar, habilitar, programar y cancelar el borrado. NO reciben ninguna operación criptográfica. Separación de funciones: quien administra la clave no debería poder leer el dato cifrado con ella. Si un principal necesita ambas cosas, se lista también en key\_users, y que esté explícito es el punto. | `list(string)` | `[]` | no |
+| <a name="input_key_users"></a> [key\_users](#input\_key\_users) | ARNs de roles o usuarios IAM que usan la clave para cifrar y descifrar. Genera DOS statements: el criptográfico (Encrypt, Decrypt, ReEncrypt*, GenerateDataKey*, DescribeKey) y el de grants (CreateGrant, ListGrants, RevokeGrant) acotado con kms:GrantIsForAWSResource. Sin el segundo, un ASG con EBS cifrado no lanza instancias, RDS no crea el cluster y Lambda no configura el cifrado en reposo, todo con errores que no mencionan la palabra grant. | `list(string)` | `[]` | no |
+| <a name="input_multi_region"></a> [multi\_region](#input\_multi\_region) | Crea la clave como primaria multirregión, replicable después con el módulo kms-replica. INMUTABLE: se fija en la creación y no se convierte. Cambiarlo destruye y recrea la clave, y todo el dato cifrado con la anterior queda ilegible. Por eso se expone en v1 aunque hoy no se use: el coste de tenerlo es una variable booleana; el de no tenerlo es recifrar todo el dato del cliente. | `bool` | `false` | no |
+| <a name="input_rotation_period_in_days"></a> [rotation\_period\_in\_days](#input\_rotation\_period\_in\_days) | Periodo de rotación automática del material criptográfico. La rotación siempre está activa. KMS conserva el material anterior para descifrar datos ya cifrados. | `number` | `365` | no |
+| <a name="input_service_principals"></a> [service\_principals](#input\_service\_principals) | Principales de servicio de AWS con acceso directo a la clave, indexados por el<br/>principal completo. El módulo inyecta siempre la condición<br/>aws:SourceAccount = <cuenta actual>; los campos opcionales acotan más.<br/> <br/>  service\_principals = {<br/>    "logs.us-east-1.amazonaws.com" = {<br/>      encryption\_context = {<br/>        "aws:logs:arn" = "arn:aws:logs:us-east-1:444455556666:log-group:*"<br/>      }<br/>    }<br/>    "s3.amazonaws.com" = {<br/>      via\_service = ["s3.us-east-1.amazonaws.com"]<br/>      source\_arns = ["arn:aws:s3:::acme-prod-data"]<br/>    }<br/>  }<br/> <br/>actions            Acciones concedidas. El default cubre el uso criptográfico normal.<br/>                   kms:CreateGrant NO está en el default: si un servicio lo necesita<br/>                   (poco común fuera de key\_users), se pide explícito en actions y el<br/>                   módulo lo separa en su propio statement con la condición<br/>                   kms:GrantIsForAWSResource = true, igual que hace con key\_users.<br/>via\_service        Condición kms:ViaService: la clave solo se usa a través de ese servicio.<br/>source\_arns        Condición aws:SourceArn (ArnLike): acota el recurso concreto que la usa.<br/>encryption\_context Condiciones kms:EncryptionContext:<clave>, una por entrada del mapa. | <pre>map(object({<br/>    actions            = optional(list(string), ["kms:Decrypt", "kms:Encrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:DescribeKey"])<br/>    via_service        = optional(list(string), [])<br/>    source_arns        = optional(list(string), [])<br/>    encryption_context = optional(map(string), {})<br/>  }))</pre> | `{}` | no |
+| <a name="input_tags"></a> [tags](#input\_tags) | Etiquetas adicionales | `map(string)` | `{}` | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_additional_alias_names"></a> [additional\_alias\_names](#output\_additional\_alias\_names) | Map de alias adicionales creados |
+| <a name="output_alias_arn"></a> [alias\_arn](#output\_alias\_arn) | ARN del alias principal |
+| <a name="output_alias_name"></a> [alias\_name](#output\_alias\_name) | Nombre del alias principal (alias/<entorno>/<nombre>) |
+| <a name="output_has_policy_override"></a> [has\_policy\_override](#output\_has\_policy\_override) | Si se proporcionó extra\_policy\_json. Indica que hay statements custom además de los modelados |
+| <a name="output_is_enabled"></a> [is\_enabled](#output\_is\_enabled) | Si la clave está habilitada para operaciones criptográficas |
+| <a name="output_key_administrators_count"></a> [key\_administrators\_count](#output\_key\_administrators\_count) | Número de principales con permisos de administración (lifecycle, no crypto) |
+| <a name="output_key_arn"></a> [key\_arn](#output\_key\_arn) | ARN completo de la clave KMS |
+| <a name="output_key_id"></a> [key\_id](#output\_key\_id) | ID único de la clave KMS (UUID) |
+| <a name="output_key_users_count"></a> [key\_users\_count](#output\_key\_users\_count) | Número de principales con permisos criptográficos (Encrypt, Decrypt, etc.) |
+| <a name="output_multi_region"></a> [multi\_region](#output\_multi\_region) | Si la clave es multirregión |
+| <a name="output_rotation_enabled"></a> [rotation\_enabled](#output\_rotation\_enabled) | Si la rotación automática está habilitada (siempre true en este módulo) |
+| <a name="output_rotation_period_in_days"></a> [rotation\_period\_in\_days](#output\_rotation\_period\_in\_days) | Periodo de rotación automática en días |
+| <a name="output_service_principals_count"></a> [service\_principals\_count](#output\_service\_principals\_count) | Número de service principals configurados |
+| <a name="output_unscoped_service_principals"></a> [unscoped\_service\_principals](#output\_unscoped\_service\_principals) | Service principals que solo tienen aws:SourceAccount (sin via\_service, source\_arns o encryption\_context). En prod debería estar vacío |
+<!-- END_TF_DOCS -->

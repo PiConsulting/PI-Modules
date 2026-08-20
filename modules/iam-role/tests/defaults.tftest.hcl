@@ -1,5 +1,5 @@
 ###############################################################################
-# Tests de contrato, plan-only. Sin credenciales, sin recursos, sin coste.
+# Tests de contrato, plan-only. Sin credenciales reales, sin recursos, sin coste.
 #
 #   terraform test
 #
@@ -12,15 +12,37 @@
 # a proposito: el data source SIEMPRE emite Statement como lista y Action como
 # lista, asi que con el no se pueden ejercitar los casos de objeto suelto ni de
 # cadena, que son justo los que fallaban.
+#
+# NO se usa mock_provider. mock_provider sustituye TODOS los data sources del
+# provider por valores generados automaticamente, incluido
+# data.aws_iam_policy_document.assume_role: su .json quedaria relleno con un
+# valor ficticio que no es JSON valido, y aws_iam_role.this lo rechazaria en su
+# propia validacion ("assume_role_policy contains an invalid JSON policy: not
+# a JSON object"). Como aws_iam_policy_document no llama a la API de AWS, es
+# preferible dejar que se calcule DE VERDAD. Mismo criterio ya aplicado en
+# kms/tests/defaults.tftest.hcl.
+#
+# Se usa entonces un provider "aws" real con credenciales dummy y las
+# validaciones de red desactivadas (skip_*), mas override_data para
+# aws_partition (no llama a la API, pero se fija igual por determinismo).
+# No hace falta override_data para aws_caller_identity: este modulo no lo usa.
 ###############################################################################
 
-mock_provider "aws" {
-  mock_data "aws_partition" {
-    defaults = {
-      id         = "aws"
-      partition  = "aws"
-      dns_suffix = "amazonaws.com"
-    }
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "test"
+  secret_key                  = "test"
+  skip_credentials_validation = true
+  skip_requesting_account_id  = true
+  skip_metadata_api_check     = true
+}
+
+override_data {
+  target = data.aws_partition.current
+  values = {
+    id         = "aws"
+    partition  = "aws"
+    dns_suffix = "amazonaws.com"
   }
 }
 

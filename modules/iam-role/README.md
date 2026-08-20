@@ -206,8 +206,64 @@ terraform destroy
 ## Inputs
 
 <!-- BEGIN_TF_DOCS -->
-<!-- Generado por terraform-docs en CI. No editar a mano.
-     Regenerar con: terraform-docs -c .terraform-docs.yml modules/iam-role -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | ~> 1.9 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 6.0, < 7.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 6.0, < 7.0 |
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [aws_iam_instance_profile.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_instance_profile) | resource |
+| [aws_iam_role.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role_policy.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
+| [aws_iam_role_policy_attachment.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_description"></a> [description](#input\_description) | descripcion del rol | `string` | n/a | yes |
+| <a name="input_environment"></a> [environment](#input\_environment) | Entorno de despliegue | `string` | n/a | yes |
+| <a name="input_name"></a> [name](#input\_name) | Nombre del rol. Convencion: <cliente>-<entorno>-<rol> | `string` | n/a | yes |
+| <a name="input_boundary_exempt_reason"></a> [boundary\_exempt\_reason](#input\_boundary\_exempt\_reason) | Justificacion escrita de por que este rol no lleva limite de permisos. Solo se usa si permissions\_boundary\_arn es null. Queda en el codigo y es revisable en un pull request, que es justo el punto. | `string` | `null` | no |
+| <a name="input_create_instance_profile"></a> [create\_instance\_profile](#input\_create\_instance\_profile) | crear un instance profile asociado al rol. Solo lo necesitan EC2 y los asg; para lamba, EC2 o RDS sirve | `bool` | `false` | no |
+| <a name="input_external_id"></a> [external\_id](#input\_external\_id) | Identificador compartido con el tercero, exigido en la politica de confianza cross-account. NO lo pongas en un tfvars: sale de Secrets Manager o de una variable del pipeline. | `string` | `null` | no |
+| <a name="input_inline_policies"></a> [inline\_policies](#input\_inline\_policies) | Politicas propias del rol, indexadas por un nombre descriptivo. El valor es el .json de un aws\_iam\_policy\_document construido en el root: no escribas JSON a mano. Se crean como inline para que se borren con el rol y no queden politicas huerfanas en la cuenta. | `map(string)` | `{}` | no |
+| <a name="input_managed_policy_arns"></a> [managed\_policy\_arns](#input\_managed\_policy\_arns) | ARNs de politicas gestionadas a adjuntar, de AWS o del cliente. | `list(string)` | `[]` | no |
+| <a name="input_max_session_duration"></a> [max\_session\_duration](#input\_max\_session\_duration) | duracion maxima de una sesion asumida, en segundos. El default es 1 hora: AWS permite hasta 12, pero un default no debe ser nunca al maximo | `number` | `3600` | no |
+| <a name="input_path"></a> [path](#input\_path) | ruta IAM del rol, util para organizarse en terminos de equipos o servicios | `string` | `"/"` | no |
+| <a name="input_permissions_boundary_arn"></a> [permissions\_boundary\_arn](#input\_permissions\_boundary\_arn) | ARN de la politica que actua como limite de permisos. El modulo no la crea: es responsabilidad del equipo de seguridad o del modulo iam-policy. | `string` | `null` | no |
+| <a name="input_tags"></a> [tags](#input\_tags) | tags aplicados al rol. Se esperan las asignaciones: Project, Owner, CostCenter | `map(string)` | `{}` | no |
+| <a name="input_trusted_account_ids"></a> [trusted\_account\_ids](#input\_trusted\_account\_ids) | Cuentas de AWS que pueden asumir el rol. Exige external\_id: sin condicion, cualquiera de esa cuenta con permiso de sts:AssumeRole puede asumirlo. | `list(string)` | `[]` | no |
+| <a name="input_trusted_services"></a> [trusted\_services](#input\_trusted\_services) | principales servicios que pueden asumir el rol, ej: ["ecs-task.amazonaws\.com$] | `list(string)` | `[]` | no |
+| <a name="input_trusted_source_account"></a> [trusted\_source\_account](#input\_trusted\_source\_account) | Cuenta que se exige en la condicion aws:SourceAccount para los principales de servicio. Evita que un servicio de AWS actuando en nombre de otra cuenta pueda asumir el rol. | `string` | `null` | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_arn"></a> [arn](#output\_arn) | ARN del rol. Es el output que consumen casi todos los modulos: ECS lo recibe como task\_role\_arn, Lambda como role, RDS como monitoring\_role\_arn. |
+| <a name="output_assume_role_policy_json"></a> [assume\_role\_policy\_json](#output\_assume\_role\_policy\_json) | Politica de confianza construida por el modulo. Permite revisar quien puede asumir el rol en un plan o en un PR, sin entrar a la consola. Contiene el external\_id en claro cuando hay confianza cross-account. |
+| <a name="output_attached_managed_policy_arns"></a> [attached\_managed\_policy\_arns](#output\_attached\_managed\_policy\_arns) | ARNs de politicas gestionadas realmente adjuntadas. Se devuelve para poder auditar sin leer el codigo del consumidor. |
+| <a name="output_boundary_exempt_reason"></a> [boundary\_exempt\_reason](#output\_boundary\_exempt\_reason) | Justificacion de la exencion de limite de permisos, o null si el rol si lo tiene. Es el campo que revisa una auditoria. |
+| <a name="output_has_permissions_boundary"></a> [has\_permissions\_boundary](#output\_has\_permissions\_boundary) | Si el rol lleva limite de permisos. False significa que se uso la exencion documentada. |
+| <a name="output_id"></a> [id](#output\_id) | ID del rol, que en IAM coincide con el nombre. Se expone por costumbre de otros modulos del ecosistema. |
+| <a name="output_inline_policy_names"></a> [inline\_policy\_names](#output\_inline\_policy\_names) | Nombres de las politicas inline creadas. |
+| <a name="output_instance_profile_arn"></a> [instance\_profile\_arn](#output\_instance\_profile\_arn) | ARN del instance profile, o null si no se creo. Lo consumen los modulos de EC2 y de autoescalado. |
+| <a name="output_instance_profile_name"></a> [instance\_profile\_name](#output\_instance\_profile\_name) | Nombre del instance profile, o null si no se creo. |
+| <a name="output_max_session_duration"></a> [max\_session\_duration](#output\_max\_session\_duration) | Duracion maxima de sesion aplicada, en segundos. |
+| <a name="output_name"></a> [name](#output\_name) | Nombre del rol. Se usa al escribir politicas de confianza en otras cuentas y en runbooks, y por eso el modulo usa name exacto en lugar de name\_prefix. |
+| <a name="output_unique_id"></a> [unique\_id](#output\_unique\_id) | Identificador interno estable del rol (AROA...). Util en condiciones aws:userid, que sobreviven a que el rol se renombre. |
 <!-- END_TF_DOCS -->
 
 ## Outputs principales
