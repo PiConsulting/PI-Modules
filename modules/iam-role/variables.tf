@@ -183,8 +183,9 @@ variable "boundary_exempt_reason" {
 
   validation {
     condition = (
-      var.permissions_boundary_arn != null ||
-      (var.boundary_exempt_reason != null && length(trimspace(var.boundary_exempt_reason)) >= 20)
+      var.permissions_boundary_arn != null ? true : (
+        var.boundary_exempt_reason == null ? false : length(trimspace(var.boundary_exempt_reason)) >= 20
+      )
     )
     error_message = "Todo rol necesita permissions_boundary_arn, o bien un boundary_exempt_reason de al menos 20 caracteres que un auditor aceptaria. La excepcion se permite; que no quede escrita, no."
   }
