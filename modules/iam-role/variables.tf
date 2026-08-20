@@ -96,8 +96,9 @@ variable "external_id" {
 
   validation {
     condition = (
-      length(var.trusted_account_ids) == 0 ||
-      (var.external_id != null && length(var.external_id) >= 16)
+      length(var.trusted_account_ids) == 0 ? true : (
+        var.external_id == null ? false : length(var.external_id) >= 16
+      )
     )
     error_message = "Con trusted_account_ids hay que pasar un external_id de al menos 16 caracteres. Sin el, el rol es vulnerable al confused deputy: cualquiera de la cuenta de confianza puede asumirlo, no solo el sistema con el que acordaste el acceso."
   }

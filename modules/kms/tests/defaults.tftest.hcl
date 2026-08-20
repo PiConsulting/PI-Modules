@@ -136,7 +136,8 @@ run "key_administrators_genera_statement_de_administracion_sin_cripto" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_kms_key.this.policy).Statement :
-      s.Sid == "KeyAdministration" && !contains(s.Action, "kms:CreateGrant") && !contains(s.Action, "kms:Decrypt")
+      !contains(s.Action, "kms:CreateGrant") && !contains(s.Action, "kms:Decrypt")
+      if s.Sid == "KeyAdministration"
     ])
     error_message = "El statement de administracion NO debe incluir kms:CreateGrant ni kms:Decrypt: un administrador no debe poder auto-concederse lectura del dato cifrado."
   }
@@ -157,7 +158,8 @@ run "key_users_genera_statement_cripto_y_statement_de_grants" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_kms_key.this.policy).Statement :
-      s.Sid == "KeyUsageCryptographic" && contains(s.Action, "kms:Decrypt") && contains(s.Action, "kms:Encrypt")
+      contains(s.Action, "kms:Decrypt") && contains(s.Action, "kms:Encrypt")
+      if s.Sid == "KeyUsageCryptographic"
     ])
     error_message = "El statement de uso criptografico debe conceder Decrypt y Encrypt."
   }
@@ -165,9 +167,9 @@ run "key_users_genera_statement_cripto_y_statement_de_grants" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_kms_key.this.policy).Statement :
-      s.Sid == "KeyUsageGrants"
-      && contains(s.Action, "kms:CreateGrant")
+      contains(s.Action, "kms:CreateGrant")
       && s.Condition.Bool["kms:GrantIsForAWSResource"] == "true"
+      if s.Sid == "KeyUsageGrants"
     ])
     error_message = "El statement de grants debe existir y acotar kms:CreateGrant con la condicion kms:GrantIsForAWSResource=true. Sin esto, ASG/RDS/Lambda no pueden lanzar recursos cifrados con esta clave."
   }
@@ -185,9 +187,9 @@ run "service_principal_usa_acciones_por_defecto_y_sid_derivado" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_kms_key.this.policy).Statement :
-      s.Sid == "ServiceUsageLogsUsEast1"
-      && contains(s.Action, "kms:Decrypt")
+      contains(s.Action, "kms:Decrypt")
       && contains(s.Action, "kms:GenerateDataKey*")
+      if s.Sid == "ServiceUsageLogsUsEast1"
     ])
     error_message = "El Sid se deriva del principal (logs.us-east-1.amazonaws.com -> ServiceUsageLogsUsEast1) y las acciones por defecto deben aplicarse cuando no se especifican."
   }
@@ -195,8 +197,8 @@ run "service_principal_usa_acciones_por_defecto_y_sid_derivado" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_kms_key.this.policy).Statement :
-      s.Sid == "ServiceUsageLogsUsEast1"
-      && s.Condition.StringEquals["aws:SourceAccount"] == "111122223333"
+      s.Condition.StringEquals["aws:SourceAccount"] == "111122223333"
+      if s.Sid == "ServiceUsageLogsUsEast1"
     ])
     error_message = "aws:SourceAccount debe inyectarse siempre, sin variable que lo desactive: cierra el vector confused-deputy."
   }
@@ -224,7 +226,8 @@ run "service_principal_acotado_no_aparece_como_unscoped" {
   assert {
     condition = anytrue([
       for s in jsondecode(aws_kms_key.this.policy).Statement :
-      s.Sid == "ServiceUsageS3" && s.Condition.ArnLike["aws:SourceArn"] == "arn:aws:s3:::acme-prod-data"
+      s.Condition.ArnLike["aws:SourceArn"] == "arn:aws:s3:::acme-prod-data"
+      if s.Sid == "ServiceUsageS3"
     ])
     error_message = "source_arns debe traducirse en una condicion ArnLike sobre aws:SourceArn."
   }
