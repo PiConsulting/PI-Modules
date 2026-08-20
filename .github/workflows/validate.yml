@@ -7,6 +7,9 @@
 # Etapas:
 #   fmt       - Verifica el formato del código.
 #   discover  - Detecta los módulos disponibles y genera la matriz de ejecución.
+#               En pull_request valida solo los módulos con cambios (o todos si el
+#               cambio toca configuración compartida del pipeline). En push a main
+#               y workflow_dispatch valida siempre el catálogo completo.
 #   validate  - Ejecuta init, validate y terraform test sobre los módulos y sus ejemplos.
 #   tflint    - Analiza buenas prácticas y reglas específicas del proveedor AWS.
 #   docs      - Verifica que la documentación esté sincronizada con variables.tf.
@@ -73,24 +76,57 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historial completo: se necesita para diffear contra el base sha del PR.
+          fetch-depth: 0
 
       - name: Discover modules/*
         id: list
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
-          modules=$(
+          all_modules=$(
             find modules \
               -mindepth 1 \
               -maxdepth 1 \
               -type d \
-            | sort \
-            | jq -R -s -c 'split("\n") | map(select(length > 0))'
+            | sort
           )
 
-          echo "modules=$modules" >> "$GITHUB_OUTPUT"
-          echo "Detected modules: $modules"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            changed=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+            echo "::group::Archivos modificados"
+            echo "$changed"
+            echo "::endgroup::"
+
+            # Cambios en config compartida del pipeline: se valida el catálogo completo.
+            shared_changed=$(
+              echo "$changed" \
+                | grep -E '^(\.github/workflows/|\.tflint\.hcl$|\.terraform-docs\.yml$)' \
+                || true
+            )
+
+            if [ -n "$shared_changed" ]; then
+              echo "Cambios en configuración compartida del pipeline: se valida todo el catálogo."
+              modules="$all_modules"
+            else
+              modules=$(echo "$changed" | grep -E '^modules/[^/]+/' | cut -d/ -f1-2 | sort -u)
+            fi
+          else
+            # push a main / workflow_dispatch: catálogo completo, sin excepciones.
+            modules="$all_modules"
+          fi
+
+          modules_json=$(echo "$modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          echo "modules=$modules_json" >> "$GITHUB_OUTPUT"
+          echo "Detected modules: $modules_json"
 
   # Validate Modules
   validate:
@@ -98,6 +134,11 @@ jobs:
 
     needs: discover
     runs-on: ubuntu-latest
+
+    env:
+      # Cada módulo se valida a sí mismo y a examples/minimal + examples/complete:
+      # 3 "terraform init" por módulo. Sin esto, cada uno redescarga el provider aws.
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.tf-plugin-cache
 
     strategy:
       fail-fast: false
@@ -113,6 +154,19 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
+      - name: Cache Terraform Providers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TF_PLUGIN_CACHE_DIR }}
+          # No hay .terraform.lock.hcl versionado (es un repo de módulos, ver .gitignore):
+          # se invalida por los rangos de version en versions.tf en su lugar.
+          key: tf-providers-${{ runner.os }}-${{ env.TF_VERSION }}-${{ hashFiles('modules/**/versions.tf') }}
+          restore-keys: |
+            tf-providers-${{ runner.os }}-${{ env.TF_VERSION }}-
+
+      - name: Prepare Terraform Plugin Cache Dir
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
       # Module Validation
       - name: Terraform Init & Validate
         working-directory: ${{ matrix.module }}
@@ -124,30 +178,38 @@ jobs:
           terraform validate
 
       # Examples Validation
+      # Regla del repositorio: todo módulo debe incluir examples/minimal y
+      # examples/complete (no basta con que exista "algo" en examples/).
       - name: Validate Examples
         shell: bash
+        env:
+          MODULE: ${{ matrix.module }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
 
-          found=0
+          missing=""
 
-          for ex in "${{ matrix.module }}/examples/"*/; do
-            found=1
+          for name in minimal complete; do
+            dir="$MODULE/examples/$name"
 
-            echo "::group::$ex"
+            if [ ! -d "$dir" ]; then
+              missing="$missing $name"
+              continue
+            fi
 
-            terraform -chdir="$ex" init \
+            echo "::group::$dir"
+
+            terraform -chdir="$dir" init \
               -backend=false \
               -input=false
 
-            terraform -chdir="$ex" validate
+            terraform -chdir="$dir" validate
 
             echo "::endgroup::"
           done
 
-          if [ "$found" -eq 0 ]; then
-            echo "::error::${{ matrix.module }} no tiene examples/. Todo módulo debe incluir minimal/ y complete/."
+          if [ -n "$missing" ]; then
+            echo "::error::$MODULE no tiene:$missing en examples/. Todo módulo debe incluir examples/minimal y examples/complete."
             exit 1
           fi
 

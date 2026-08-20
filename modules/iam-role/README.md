@@ -1,5 +1,3 @@
-<!-- >>> Copiar a `modules/iam-role/README.md` en PI-Modules <<< -->
-
 # iam-role
 
 Rol de IAM con política de confianza construida, límite de permisos obligatorio y
